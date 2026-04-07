@@ -12,6 +12,8 @@
 import client from './_retellClient.js';
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+const CLICK_ID_KEYS = ['gclid', 'fbclid', 'msclkid'];
+const ALL_TRACKING_KEYS = [...UTM_KEYS, ...CLICK_ID_KEYS];
 
 /** In-memory UTM store (best-effort, not guaranteed across serverless instances) */
 const utmStore = new Map();
@@ -23,7 +25,7 @@ const utmStore = new Map();
  */
 function pickUtm(obj) {
   const utm = {};
-  for (const key of UTM_KEYS) {
+  for (const key of ALL_TRACKING_KEYS) {
     utm[key] = obj[key] || null;
   }
   return utm;

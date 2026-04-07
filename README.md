@@ -1,229 +1,117 @@
-# Retell Sidetool Logistics
+# FlexSpace Chat Agent
 
-Canadian Logistics AI Agent - Lead Qualification & FAQ Support with Retell AI. A demonstration of Retell AI web call functionality that allows users to have voice conversations with an AI agent directly in their browser.
-
-## 🌐 Live Demo
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/franciscolamberti/retell-logistics-demo)
-
-Try the live demo: https://retell-logistics-demo-eight.vercel.app
+AI-powered chat widget for FlexSpace Logistics. Embeddable chatbot that handles lead qualification, FAQ support, and booking scheduling via Retell AI.
 
 ## Features
 
-- 🎙️ **Browser-based voice calls** - No phone required, works directly in the browser
-- 🤖 **Real-time AI conversations** - Speak naturally with an AI agent
-- 🎨 **Modern, clean design** - Matches Kleva demo styling
-- 📱 **Fully responsive** - Works on desktop and mobile
-- ⚡ **No build process** - Single HTML file, ready to use
-- 🔊 **WebRTC audio** - Low-latency voice communication
+- **Embeddable chat widget** - Floating button that opens a full chat interface, embeddable on any website
+- **Lead capture** - Collects visitor info (name, email, phone) before starting a conversation, with phone validation by country
+- **Bilingual support (EN/FR)** - Full i18n with language selector
+- **Chat history** - Persists conversations so returning users can continue where they left off
+- **Rating system** - Post-conversation feedback with star ratings and comments
+- **Booking reminders** - Dynamic reminders when users click calendar links
+- **UTM tracking** - Captures UTM parameters for marketing attribution
+- **Webhook integrations** - Sends events to n8n workflows (chat started, ratings)
+
+## Architecture
+
+```
+flexspace-agent-demo/
+├── api/                          # Vercel serverless functions
+│   ├── create-chat.js            # Creates Retell chat session
+│   ├── send-message.js           # Sends message & gets AI response
+│   ├── end-chat.js               # Ends chat session
+│   ├── get-chat.js               # Gets chat details
+│   └── capture-utm.js            # UTM tracking endpoint
+├── public/
+│   ├── index.html                # Entry point
+│   └── src/
+│       ├── app.js                # Main orchestrator
+│       ├── components/
+│       │   ├── ChatWidget/       # Chat UI (messages, input, typing indicator)
+│       │   ├── ChatHistory/      # Conversation history panel
+│       │   ├── FloatingChatButton/ # Floating open/close button
+│       │   ├── LeadCapture/      # Lead form before chat starts
+│       │   ├── WidgetSelector/   # Voice/Chat mode toggle
+│       │   └── ExampleQuestions/ # Suggested starter questions
+│       ├── services/
+│       │   ├── config.js         # App configuration & i18n strings
+│       │   ├── chatService.js    # Retell Chat API client
+│       │   ├── ChatOrchestrator.js # Chat flow coordination
+│       │   ├── ChatStateStore.js # Chat state management
+│       │   ├── ChatHistoryStore.js # Conversation persistence
+│       │   ├── LeadStore.js      # Lead data persistence
+│       │   ├── ratingService.js  # Post-chat rating submission
+│       │   ├── trackingService.js # UTM & event tracking
+│       │   └── VariableExtractor.js # Extracts variables from AI responses
+│       ├── utils/
+│       │   ├── EventBus.js       # Pub/sub event system
+│       │   ├── buildBookingReminder.js # Booking reminder logic
+│       │   └── utm.js            # UTM parameter utilities
+│       └── styles/
+│           ├── variables.css     # CSS custom properties
+│           ├── global.css        # Base styles
+│           ├── animations.css    # Keyframe animations
+│           └── embed-global.css  # Styles for embedded mode
+└── vercel.json                   # Vercel routing & CORS config
+```
 
 ## Quick Start
 
-1. **Clone this repository**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/franciscolamberti/retell-logistics-demo.git
-   cd retell-logistics-demo
+   git clone https://github.com/franMenem/chatbotFlexspace.git
+   cd chatbotFlexspace
    ```
 
-2. **Open the demo**
-
-   Simply open `index.html` in your browser or use a local server:
-
+2. **Install dependencies**
    ```bash
-   # Using Python 3
-   python -m http.server 8000
-
-   # Using Node.js (with http-server)
-   npx http-server
+   npm install
    ```
 
-3. **Test the web call**
+3. **Set up environment variables**
 
-   Click "Start Voice Call" and allow microphone access when prompted.
+   Create a `.env.local` file with your Retell AI credentials:
+   ```
+   RETELL_API_KEY=your_retell_api_key
+   RETELL_AGENT_ID=your_agent_id
+   ```
 
-## How It Works
-
-1. User clicks "Start Voice Call" button
-2. Browser requests microphone permission
-3. App creates a web call session via Retell API
-4. WebRTC connection established with AI agent
-5. User can speak naturally - AI responds in real-time
-6. Call timer shows duration
-7. User clicks "End Call" to disconnect
+4. **Run locally**
+   ```bash
+   vercel dev
+   ```
 
 ## Configuration
 
-The demo is pre-configured with these credentials:
+The main configuration lives in `public/src/services/config.js`:
 
-- **Public Key**: `key_9b7349002a90326c7c553addd6ce`
-- **Agent ID**: `agent_d1e33aa42cae40033f4ce5e641`
+- **Chat settings** - Bot name, theme color, auto-open behavior
+- **i18n strings** - All UI text in English and French
+- **Chat starters** - Suggested questions shown to users
+- **Webhook URLs** - n8n endpoints for ratings and tracking
 
-To use your own agent:
+## Tech Stack
 
-1. Open `index.html`
-2. Find the `CONFIG` object (around line 120)
-3. Replace with your credentials:
-
-```javascript
-const CONFIG = {
-  publicKey: 'your_public_key_here',
-  agentId: 'your_agent_id_here'
-};
-```
+- **Frontend**: Vanilla JS (ES6 modules), CSS custom properties
+- **Backend**: Vercel Serverless Functions (Node.js)
+- **AI**: Retell AI SDK v5
+- **Deployment**: Vercel
+- **Webhooks**: n8n
 
 ## Browser Support
 
-Works in modern browsers with WebRTC support:
-
-- ✅ Chrome/Edge (recommended)
-- ✅ Firefox
-- ✅ Safari (macOS/iOS)
-- ✅ Opera
-
-**Note**: HTTPS required for microphone access (localhost works for testing)
-
-## Technical Details
-
-### Dependencies
-
-- **Retell Web Client SDK** v2.0.7 - Loaded from CDN
-- **Tailwind CSS** - For styling (loaded from CDN)
-
-### API Flow
-
-```
-1. User clicks button
-   ↓
-2. POST /v2/create-web-call
-   - Headers: Authorization with public key
-   - Body: { agent_id }
-   ↓
-3. Response: { access_token, call_id }
-   ↓
-4. retellClient.startCall({ accessToken })
-   ↓
-5. WebRTC connection established
-   ↓
-6. Real-time audio streaming
-```
-
-### Events
-
-The SDK provides these events:
-
-- `call_started` - Connection established
-- `call_ended` - Call disconnected
-- `error` - Error occurred
-- `agent_start_talking` - Agent begins speaking
-- `agent_stop_talking` - Agent finishes speaking
-- `audio` - Audio data received
-- `update` - Call status update
+- Chrome/Edge 89+
+- Firefox 108+
+- Safari 16.4+
 
 ## Deployment
 
-Deploy to Vercel in minutes:
-
-### Quick Deploy
-
 ```bash
-# Install Vercel CLI
 npm install -g vercel
-
-# Deploy
 vercel
 ```
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
-
-## Customization
-
-### Styling
-
-The demo uses Tailwind CSS. Key styling elements:
-
-- **Voice Waves**: Purple animated circles with `slowPulse` animation
-- **Layout**: Clean, centered design matching Kleva aesthetic
-- **Colors**: Black/white theme with purple accents
-- **Typography**: Bold headings with gray subtitles
-
-### Adding Custom Variables
-
-To pass dynamic variables to your agent:
-
-```javascript
-const response = await fetch('https://api.retellai.com/v2/create-web-call', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${CONFIG.publicKey}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    agent_id: CONFIG.agentId,
-    retell_llm_dynamic_variables: {
-      user_name: 'John Doe',
-      custom_field: 'value'
-    }
-  })
-});
-```
-
-## Troubleshooting
-
-### Microphone Not Working
-
-- Check browser permissions (click lock icon in address bar)
-- Ensure you're using HTTPS (or localhost for testing)
-- Try a different browser (Chrome recommended)
-
-### Connection Fails
-
-- Verify your public key is correct
-- Check agent ID exists and is active
-- Look at browser console for detailed errors
-- Ensure you have Retell credits available
-
-### No Audio Heard
-
-- Check your system audio output
-- Verify agent is configured with a voice
-- Test with headphones to rule out echo issues
-
-### CORS Errors
-
-- This shouldn't happen with Retell's public key system
-- If you see CORS errors, verify you're using the public key (not API key)
-
-## Examples
-
-- `index.html` - Main web call demo
-- `web-call-demo.html` - Alternative implementation
-- `examples/with-conversation-flow.html` - Using conversation flows
-
-## Resources
-
-- [Retell AI Documentation](https://docs.retellai.com)
-- [Retell Web SDK](https://docs.retellai.com/sdk-reference/web-sdk)
-- [Create Voice Agent Guide](https://docs.retellai.com/build/create-voice-agent)
-- [Retell Public Keys](https://docs.retellai.com/accounts/public-keys)
-
-## Security
-
-- Uses Retell's public key system - safe for frontend use
-- No sensitive credentials exposed
-- HTTPS required for production (microphone access)
-- WebRTC encrypted by default
-
-## Support
-
-For issues or questions:
-- [Retell Documentation](https://docs.retellai.com)
-- [GitHub Issues](https://github.com/franciscolamberti/retell-logistics-demo/issues)
-- Check browser console for detailed error messages
-
 ## License
 
-MIT License - feel free to use this demo as a starting point for your own projects.
-
----
-
-**Note**: This demo creates browser-based voice calls, not phone calls. For phone callback functionality, see the `examples/` folder or check the Retell documentation for the callback widget.
+MIT

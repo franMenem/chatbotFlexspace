@@ -8,6 +8,8 @@
  */
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+const CLICK_ID_KEYS = ['gclid', 'fbclid', 'msclkid'];
+const ALL_TRACKING_KEYS = [...UTM_KEYS, ...CLICK_ID_KEYS];
 const STORAGE_KEY = 'flexspace_utm';
 
 let _cachedUtm = null;
@@ -21,7 +23,7 @@ function extractUtmFromUrl(url) {
   try {
     const params = new URLSearchParams(new URL(url).search);
     const utm = {};
-    for (const key of UTM_KEYS) {
+    for (const key of ALL_TRACKING_KEYS) {
       const value = params.get(key);
       if (value) utm[key] = value;
     }
