@@ -4,12 +4,11 @@
  */
 import { ChatWidget } from './components/ChatWidget/ChatWidget.js';
 import { FloatingChatButton } from './components/FloatingChatButton/FloatingChatButton.js';
-// Using ChatOrchestrator with ChatService alias for backward compatibility
-import { ChatService } from './services/ChatOrchestrator.js';
+import { ChatOrchestrator } from './services/ChatOrchestrator.js';
 
 class ChatApp {
   constructor() {
-    this.chatService = new ChatService();
+    this.chatService = new ChatOrchestrator();
     this.chatContainer = null;
     this.isChatWidgetOpen = false;
     this.components = {};

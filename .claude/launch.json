@@ -6,6 +6,12 @@
       "runtimeExecutable": "vercel",
       "runtimeArgs": ["dev", "--listen", "3456"],
       "port": 3456
+    },
+    {
+      "name": "node-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
     }
   ]
 }

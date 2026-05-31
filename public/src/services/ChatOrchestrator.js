@@ -1,12 +1,9 @@
 /**
- * ChatOrchestrator - Coordinates chat operations
- * Maintains same public API as original ChatService for backward compatibility
- *
- * Dependencies injected:
- * - RetellApiClient: HTTP communication
- * - ChatStateStore: State management
- * - EventBus: Event pub/sub
- * - VariableExtractor: Response parsing
+ * ChatOrchestrator - Coordinates chat operations across injected dependencies:
+ *  - RetellApiClient: HTTP communication
+ *  - ChatStateStore: state management
+ *  - EventBus: event pub/sub
+ *  - VariableExtractor: response parsing
  */
 import { EventBus } from '../utils/EventBus.js';
 import { RetellApiClient } from './RetellApiClient.js';
@@ -45,10 +42,6 @@ export class ChatOrchestrator {
     this.selectedLang = lang;
   }
 
-  // ============================================
-  // PUBLIC API (backward compatible with ChatService)
-  // ============================================
-
   /**
    * Register event listener
    * @param {string} event - Event name
@@ -56,15 +49,6 @@ export class ChatOrchestrator {
    */
   on(event, callback) {
     this.events.on(event, callback);
-  }
-
-  /**
-   * Emit event (for internal use, kept public for compatibility)
-   * @param {string} event
-   * @param {*} data
-   */
-  emit(event, data) {
-    this.events.emit(event, data);
   }
 
   /**
@@ -105,23 +89,19 @@ export class ChatOrchestrator {
     }
 
     try {
-      // Add user message to local history
       if (!skipUserMessage && message.trim() !== '') {
         const userMessage = this.state.addMessage('user', message);
         this.events.emit('messageSent', userMessage);
       }
 
-      // Send to API
       const data = await this.apiClient.sendMessage(this.state.chatId, message);
 
-      // Check if chat ended
       if (this.extractor.isChatEnded(data)) {
-        this.saveToHistory(); // Save before marking as ended
+        this.saveToHistory();
         this.state.setEnded();
         this.events.emit('chatEnded', { chatId: this.state.chatId, autoEnded: true });
       }
 
-      // Extract variables
       const vars = this.extractor.extract(data);
       if (vars) {
         Object.entries(vars).forEach(([key, value]) => {
@@ -130,11 +110,10 @@ export class ChatOrchestrator {
         this.events.emit('variablesUpdated', this.state.variables);
       }
 
-      // Extract bot response
       const botContent = this.extractor.extractBotResponse(data);
       const botMessage = this.state.addMessage('agent', botContent);
 
-      // Apply configured delay before showing response (simulates natural typing)
+      // Simulates natural typing latency
       const delay = CONFIG.responseDelay || 0;
       if (delay > 0) {
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -142,7 +121,7 @@ export class ChatOrchestrator {
 
       this.events.emit('messageReceived', botMessage);
 
-      // Proactive check for chat end (with delay)
+      // Proactive end-check covers cases where backend marks ended after the response
       setTimeout(() => {
         if (this.state.isActive) {
           this.checkIfChatEnded().catch(err => {
@@ -156,32 +135,14 @@ export class ChatOrchestrator {
     } catch (error) {
       console.error('❌ Error sending message:', error);
 
-      // Check if this is a "chat ended" error
       if (this.extractor.isChatEnded(error.message || '')) {
-        this.saveToHistory(); // Save before marking as ended
+        this.saveToHistory();
         this.state.setEnded();
         this.events.emit('chatEnded', { chatId: this.state.chatId, autoEnded: true });
       } else {
         this.events.emit('error', error);
       }
 
-      throw error;
-    }
-  }
-
-  /**
-   * Get chat details
-   * @returns {Promise<Object>}
-   */
-  async getChatDetails() {
-    if (!this.state.chatId) {
-      throw new Error('No active chat session');
-    }
-
-    try {
-      return await this.apiClient.getChatDetails(this.state.chatId);
-    } catch (error) {
-      console.error('❌ Error getting chat details:', error);
       throw error;
     }
   }
@@ -195,7 +156,7 @@ export class ChatOrchestrator {
       return false;
     }
 
-    // Don't check immediately after creation
+    // Skip immediately-after-creation checks to avoid false 404s
     if (this.state.isRecentlyCreated(2000)) {
       return false;
     }
@@ -204,7 +165,7 @@ export class ChatOrchestrator {
       const chatDetails = await this.apiClient.getChatDetails(this.state.chatId);
 
       if (this.extractor.isChatEnded(chatDetails)) {
-        this.saveToHistory(); // Save before marking as ended
+        this.saveToHistory();
         this.state.setEnded();
         this.events.emit('chatEnded', { chatId: this.state.chatId, autoEnded: true });
         return true;
@@ -217,51 +178,14 @@ export class ChatOrchestrator {
     }
   }
 
-  /**
-   * End the current chat session
-   * @returns {Promise<void>}
-   */
-  async endChat() {
-    if (!this.state.chatId || !this.state.isActive) {
-      console.warn('⚠️ No active chat to end');
-      return;
-    }
-
-    try {
-      await this.apiClient.endChat(this.state.chatId);
-      const chatId = this.state.chatId;
-      this.state.reset();
-      this.events.emit('chatEnded', { chatId });
-
-    } catch (error) {
-      console.error('❌ Error ending chat:', error);
-      this.events.emit('error', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // COMPATIBILITY PROPERTIES & METHODS
-  // ============================================
-
   /** @returns {string|null} */
   get chatId() {
     return this.state.chatId;
   }
 
-  /** @returns {boolean} */
-  get isActive() {
-    return this.state.isActive;
-  }
-
   /** @returns {Array} */
   get messages() {
     return this.state.messages;
-  }
-
-  /** @returns {Object} */
-  get variables() {
-    return this.state.variables;
   }
 
   /** @returns {boolean} */
@@ -275,14 +199,6 @@ export class ChatOrchestrator {
   }
 
   /**
-   * Get all messages in current chat
-   * @returns {Array}
-   */
-  getMessages() {
-    return this.state.messages;
-  }
-
-  /**
    * Check if chat is active
    * @returns {boolean}
    */
@@ -291,55 +207,15 @@ export class ChatOrchestrator {
   }
 
   /**
-   * Get a specific variable
-   * @param {string} name
-   * @returns {*}
-   */
-  getVariable(name) {
-    return this.state.variables[name];
-  }
-
-  /**
-   * Get all variables
-   * @returns {Object}
-   */
-  getAllVariables() {
-    return this.state.variables;
-  }
-
-  /**
-   * Set a variable
-   * @param {string} name
-   * @param {*} value
-   */
-  setVariable(name, value) {
-    this.state.setVariable(name, value);
-    this.events.emit('variableUpdated', { name, value });
-  }
-
-  /**
-   * Clear all variables
-   */
-  clearVariables() {
-    this.state.clearVariables();
-    this.events.emit('variablesCleared');
-  }
-
-  /**
-   * Reset the service state
+   * Reset the service state (saves to history first if there are messages)
    */
   reset() {
-    // Save to history before resetting (if there are messages)
     this.saveToHistory();
     this.state.reset();
   }
 
-  // ============================================
-  // HISTORY METHODS
-  // ============================================
-
   /**
-   * Save current chat to history
+   * Save current chat to history (no-op if there are no messages)
    */
   saveToHistory() {
     if (this.state.messages.length > 0) {
@@ -352,46 +228,6 @@ export class ChatOrchestrator {
   }
 
   /**
-   * Get chat history
-   * @returns {Array} Array of past chats (newest first)
-   */
-  getHistory() {
-    return chatHistoryStore.getAll();
-  }
-
-  /**
-   * Get a specific chat from history
-   * @param {string} chatId
-   * @returns {Object|null}
-   */
-  getHistoryChat(chatId) {
-    return chatHistoryStore.getById(chatId);
-  }
-
-  /**
-   * Delete a chat from history
-   * @param {string} chatId
-   */
-  deleteHistoryChat(chatId) {
-    chatHistoryStore.deleteChat(chatId);
-  }
-
-  /**
-   * Clear all history
-   */
-  clearHistory() {
-    chatHistoryStore.clearAll();
-  }
-
-  /**
-   * Get history count
-   * @returns {number}
-   */
-  get historyCount() {
-    return chatHistoryStore.count;
-  }
-
-  /**
    * Get lead contact data captured during pre-chat flow.
    * @returns {{ first_name: string, last_name: string, email: string, phone: string } | null}
    */
@@ -399,7 +235,3 @@ export class ChatOrchestrator {
     return LeadStore.get();
   }
 }
-
-// Default export for drop-in replacement
-// Usage: import { ChatService } from './ChatOrchestrator.js'
-export { ChatOrchestrator as ChatService };
