@@ -60,7 +60,35 @@ export class ChatWidget {
     const widget = document.createElement('div');
     widget.className = 'chat-widget';
 
-    // Header
+    const header = this._buildHeader();
+    const messagesContainer = this._buildMessagesArea();
+    this._buildStartersAndQuickReplies();
+    const inputContainer = this._buildInputWithRestart();
+    this.historyPanel = new ChatHistory(
+      (chat) => this.loadHistoryChat(chat),
+      () => this.historyPanel.hide()
+    );
+    this.welcomeScreen = this._buildWelcomeScreen();
+
+    widget.appendChild(header);
+    widget.appendChild(messagesContainer);
+    widget.appendChild(this.startersFixedContainer);
+    widget.appendChild(this.quickRepliesContainer);
+    widget.appendChild(inputContainer);
+    widget.appendChild(this.welcomeScreen);
+    this.historyPanel.mount(widget);
+
+    this.leadCapture = new LeadCapture(this.getTranslations(), () => this._showLangScreen());
+    this.leadCapture.mount(widget);
+
+    this.element = widget;
+    this.setupServiceListeners();
+
+    return widget;
+  }
+
+  /** Build chat header with history button and online status */
+  _buildHeader() {
     const header = document.createElement('div');
     header.className = 'chat-header';
     header.innerHTML = `
@@ -79,26 +107,30 @@ export class ChatWidget {
       </div>
     `;
 
-    // Save status elements for online/offline toggling
     this.statusDot = header.querySelector('.status-dot');
     this.statusText = header.querySelector('.status-text');
+    header.querySelector('.chat-history-btn').addEventListener('click', () => this.toggleHistory());
 
-    // History button event
-    const historyBtn = header.querySelector('.chat-history-btn');
-    historyBtn.addEventListener('click', () => this.toggleHistory());
+    return header;
+  }
 
-    // Messages container
+  /** Build the scrollable messages area and bind the booking-reminder hook */
+  _buildMessagesArea() {
     const messagesContainer = this.messageList.create();
     this.typingIndicator.setContainer(messagesContainer);
 
-    // Booking reminder: fire once when user clicks any calendar button
+    // Fires the booking reminder once when any calendar button is clicked
     messagesContainer.addEventListener('click', (e) => {
       if (e.target.closest('.outlook-calendar-button')) {
         this.handleBookingButtonClick();
       }
     });
 
-    // Starters setup
+    return messagesContainer;
+  }
+
+  /** Build the starters and quick-replies containers (hidden by default) */
+  _buildStartersAndQuickReplies() {
     if (CONFIG.chatStarters?.length > 0) {
       this.startersComponent = new ExampleQuestions(
         CONFIG.chatStarters,
@@ -110,16 +142,16 @@ export class ChatWidget {
     this.startersFixedContainer.className = 'chat-starters-fixed';
     this.startersFixedContainer.style.display = 'none';
 
-    // Quick replies container (for bot-driven options)
     this.quickRepliesContainer = document.createElement('div');
     this.quickRepliesContainer.className = 'quick-replies-container';
     this.quickRepliesContainer.style.display = 'none';
+  }
 
-    // Input container
+  /** Build chat input container and prepend the restart icon button */
+  _buildInputWithRestart() {
     const inputContainer = this.chatInput.create();
     this.inputContainer = inputContainer;
 
-    // Restart icon button (inserted into input container)
     this.restartIcon = document.createElement('button');
     this.restartIcon.className = 'chat-restart-icon';
     this.restartIcon.style.display = 'none';
@@ -132,17 +164,15 @@ export class ChatWidget {
     this.restartIcon.addEventListener('click', () => this.handleStartNewConversation());
     inputContainer.insertBefore(this.restartIcon, inputContainer.firstChild);
 
-    // History panel
-    this.historyPanel = new ChatHistory(
-      (chat) => this.loadHistoryChat(chat),
-      () => this.historyPanel.hide()
-    );
+    return inputContainer;
+  }
 
-    // Welcome screen overlay
-    this.welcomeScreen = document.createElement('div');
-    this.welcomeScreen.className = 'chat-welcome-screen';
+  /** Build the welcome overlay (language selector + start button) */
+  _buildWelcomeScreen() {
+    const welcomeScreen = document.createElement('div');
+    welcomeScreen.className = 'chat-welcome-screen';
     const t = this.getTranslations();
-    this.welcomeScreen.innerHTML = `
+    welcomeScreen.innerHTML = `
       <div class="welcome-content">
         <div class="welcome-avatar">
           <img src="${CONFIG.baseUrl}/agent-avatar.png" alt="${CONFIG.chatBotName}" />
@@ -161,32 +191,14 @@ export class ChatWidget {
       </div>
     `;
 
-    this.welcomeScreen.querySelectorAll('.lang-btn').forEach(btn => {
+    welcomeScreen.querySelectorAll('.lang-btn').forEach(btn => {
       btn.addEventListener('click', () => this.handleLanguageChange(btn.dataset.lang));
     });
-
-    this.welcomeScreen.querySelector('.welcome-start-btn').addEventListener('click', () => {
+    welcomeScreen.querySelector('.welcome-start-btn').addEventListener('click', () => {
       this.dismissWelcomeScreen();
     });
 
-    // Assemble widget
-    widget.appendChild(header);
-    widget.appendChild(messagesContainer);
-    widget.appendChild(this.startersFixedContainer);
-    widget.appendChild(this.quickRepliesContainer);
-    widget.appendChild(inputContainer);
-    widget.appendChild(this.welcomeScreen);
-    this.historyPanel.mount(widget);
-
-    // Lead capture screen (step 1 — before language selector)
-    const defaultT = this.getTranslations();
-    this.leadCapture = new LeadCapture(defaultT, () => this._showLangScreen());
-    this.leadCapture.mount(widget);
-
-    this.element = widget;
-    this.setupServiceListeners();
-
-    return widget;
+    return welcomeScreen;
   }
 
   /**

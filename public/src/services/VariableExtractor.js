@@ -12,6 +12,15 @@ export class VariableExtractor {
     'user_number', 'call_type', 'primary_service_type'
   ];
 
+  /** Status values that indicate a chat is no longer active */
+  static ENDED_STATUS = new Set(['ended', 'finished', 'completed', 'error']);
+
+  /** Boolean fields whose `true` value means the chat has ended */
+  static ENDED_BOOLEAN_FIELDS = ['ended', 'is_ended', 'finished'];
+
+  /** Timestamp fields whose presence (non-null) means the chat has ended */
+  static ENDED_TIMESTAMP_FIELDS = ['ended_at', 'finished_at', 'end_time'];
+
   /**
    * Extract variables from API response
    * Checks multiple possible locations in Retell AI response
@@ -113,30 +122,19 @@ export class VariableExtractor {
 
   /**
    * Check if response indicates chat has ended
-   * @param {Object} data - API response or error text
+   * @param {Object|string} data - API response object or error text
    * @returns {boolean}
    */
   isChatEnded(data) {
     if (typeof data === 'string') {
-      return data.includes('Chat already ended') || data.includes('chat ended');
+      return /chat (already )?ended/i.test(data);
     }
 
-    if (typeof data === 'object') {
-      return (
-        data.chat_status === 'ended' ||
-        data.status === 'ended' ||
-        data.status === 'finished' ||
-        data.status === 'completed' ||
-        data.status === 'error' ||
-        data.ended === true ||
-        data.is_ended === true ||
-        data.finished === true ||
-        (data.ended_at !== null && data.ended_at !== undefined) ||
-        (data.finished_at !== null && data.finished_at !== undefined) ||
-        (data.end_time !== null && data.end_time !== undefined)
-      );
-    }
+    if (!data || typeof data !== 'object') return false;
 
-    return false;
+    if (VariableExtractor.ENDED_STATUS.has(data.status)) return true;
+    if (VariableExtractor.ENDED_STATUS.has(data.chat_status)) return true;
+    if (VariableExtractor.ENDED_BOOLEAN_FIELDS.some(f => data[f] === true)) return true;
+    return VariableExtractor.ENDED_TIMESTAMP_FIELDS.some(f => data[f] != null);
   }
 }
