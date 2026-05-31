@@ -10,26 +10,11 @@
  */
 
 import client from './_retellClient.js';
-
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-const CLICK_ID_KEYS = ['gclid', 'fbclid', 'msclkid'];
-const ALL_TRACKING_KEYS = [...UTM_KEYS, ...CLICK_ID_KEYS];
+import { applyCors, handlePreflight } from './_cors.js';
+import { pickTracking } from './_trackingKeys.js';
 
 /** In-memory UTM store (best-effort, not guaranteed across serverless instances) */
 const utmStore = new Map();
-
-/**
- * Extract only UTM fields from an object
- * @param {Object} obj
- * @returns {Object} Only utm_* keys with string values
- */
-function pickUtm(obj) {
-  const utm = {};
-  for (const key of ALL_TRACKING_KEYS) {
-    utm[key] = obj[key] || null;
-  }
-  return utm;
-}
 
 /**
  * Fallback: read UTMs from Retell's retell_llm_dynamic_variables
@@ -40,23 +25,16 @@ function pickUtm(obj) {
 async function fetchUtmFromRetell(chatId) {
   try {
     const chat = await client.chat.retrieve(chatId);
-    return pickUtm(chat.retell_llm_dynamic_variables || {});
+    return pickTracking(chat.retell_llm_dynamic_variables || {});
   } catch (e) {
     console.error('Fallback retrieve failed for', chatId, e.message);
-    return pickUtm({});
+    return pickTracking({});
   }
 }
 
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  applyCors(res, 'POST,OPTIONS');
+  if (handlePreflight(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -87,7 +65,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'chat_id is required' });
     }
 
-    const utm = pickUtm(body);
+    const utm = pickTracking(body);
     utmStore.set(chat_id, utm);
 
     return res.status(200).json({ success: true });
